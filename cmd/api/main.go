@@ -2,16 +2,21 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 
 	"github.com/mua-restinpeace/sewa-rimba/internal/config"
+	"github.com/mua-restinpeace/sewa-rimba/internal/handler"
+	"github.com/mua-restinpeace/sewa-rimba/internal/repository"
+	"github.com/mua-restinpeace/sewa-rimba/internal/router"
+	"github.com/mua-restinpeace/sewa-rimba/internal/service"
 )
 
 func main() {
@@ -29,10 +34,37 @@ func main() {
 	}
 	defer db.Close()
 
-	err = db.Ping(ctx)
-	if err != nil {
-		log.Fatal(err)
+	// repositories
+	equipmentRepo := repository.NewEquipmentrRepository(db)
+
+	// services
+	equipmentService := service.NewEquipmentService(equipmentRepo)
+
+	// handlers
+	handlers := router.Handlers{
+		Equipment: handler.NewEquipmentHandler(equipmentService),
 	}
 
-	fmt.Println("Successfully connected to PostgreSQL")
+	r := router.New(handlers)
+
+	srv := &http.Server{
+		Addr:    ":" + cfg.Port,
+		Handler: r,
+	}
+
+	go func() {
+		log.Printf("listening on: %s", cfg.Port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("server error: %v", err)
+		}
+	}()
+
+	<-ctx.Done()
+	log.Println("shutting down...")
+
+	shotdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shotdownCtx); err != nil {
+		log.Printf("graceful shutdown failed: %v", err)
+	}
 }

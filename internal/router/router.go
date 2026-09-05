@@ -21,6 +21,7 @@ func New(h Handlers) http.Handler {
 	r.Route("/api", func(r chi.Router) {
 		// public routes
 		r.Get("/equipment", h.Equipment.List)
+		r.Get("/equipment/{slug}", h.Equipment.Get)
 	})
 
 	return r

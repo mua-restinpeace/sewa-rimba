@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/mua-restinpeace/sewa-rimba/internal/service"
 	"github.com/mua-restinpeace/sewa-rimba/pkg/response"
 )
@@ -49,4 +50,16 @@ func (h *EquipmentHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.JSON(w, http.StatusOK, items)
+}
+
+// GET /api/equipment/$slug
+func (h *EquipmentHandler) Get(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	item, err := h.service.GetBySlug(r.Context(), slug)
+	if err != nil {
+		response.NotFound(w, "equipment not found")
+		return
+	}
+
+	response.JSON(w, http.StatusOK, item)
 }

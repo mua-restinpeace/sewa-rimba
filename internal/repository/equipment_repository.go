@@ -57,3 +57,20 @@ func (r *EquipmentRepository) ListAvailable(ctx context.Context, start, end time
 
 	return items, rows.Err()
 }
+
+func (r *EquipmentRepository) GetBySlug (ctx context.Context, slug string) (*model.EquipmentItem, error) {
+	query := `
+		SELECT id, category_id, name, slug, COALESCE(description, ''), daily_rate, total_quantity, 	COALESCE(condition_notes, ''), COALESCE(photo_url, ''), is_active, created_at, updated_at
+		FROM equipment_items WHERE slug = $1 AND is_active = true`
+
+	var e model.EquipmentItem
+	err := r.db.QueryRow(ctx, query, slug).Scan(
+		&e.ID, &e.CategoryID, &e.Name, &e.Slug, &e.Description, &e.DailyRate, &e.TotalQuantity, &e.Condition_Notes, &e.PhotoURL, &e.IsActive, &e.CreatedAt, &e.UpdateAt,
+	)
+	if err != nil {
+		fmt.Println("GetBySlug query row error: ", err)
+		return nil, err
+	}
+
+	return &e, nil
+}

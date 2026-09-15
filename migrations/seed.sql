@@ -9,7 +9,7 @@
 
 -- ---------------------------------------------------------------------
 -- Employees
--- Login with: email = admin@rentalshop.test / password = password123
+-- Login with: email =   / password = password123
 -- (bcrypt hash below was generated for that exact password)
 -- ---------------------------------------------------------------------
 INSERT INTO employees (name, phone, email, password_hash) VALUES

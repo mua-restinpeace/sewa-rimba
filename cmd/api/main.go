@@ -36,16 +36,19 @@ func main() {
 
 	// repositories
 	equipmentRepo := repository.NewEquipmentrRepository(db)
+	employeeRepo := repository.NewEmployeeRepository(db)
 
 	// services
 	equipmentService := service.NewEquipmentService(equipmentRepo)
+	authService := service.NewAuthService(employeeRepo, cfg.JWTSecret)
 
 	// handlers
 	handlers := router.Handlers{
 		Equipment: handler.NewEquipmentHandler(equipmentService),
+		Auth: handler.NewAuthHandler(authService, employeeRepo),
 	}
 
-	r := router.New(handlers)
+	r := router.New(handlers, authService)
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,

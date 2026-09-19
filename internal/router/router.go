@@ -12,6 +12,7 @@ import (
 
 type Handlers struct {
 	Equipment *handler.EquipmentHandler
+	Booking   *handler.BookingHandler
 	Auth      *handler.AuthHendler
 }
 
@@ -25,6 +26,7 @@ func New(h Handlers, authService *service.AuthService) http.Handler {
 		// public routes
 		r.Get("/equipment", h.Equipment.List)
 		r.Get("/equipment/{slug}", h.Equipment.Get)
+		r.Post("/bookings", h.Booking.Create)
 
 		r.Post("/auth/login", h.Auth.Login)
 

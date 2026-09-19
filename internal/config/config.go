@@ -10,6 +10,7 @@ type Config struct {
 	DatabaseURL        string
 	JWTSecret          string
 	BookingHoldMinutes int
+	ShopWhatsappNumber string
 }
 
 func Load() *Config {
@@ -18,6 +19,7 @@ func Load() *Config {
 		DatabaseURL:        getEnv("DATABASE_URL", ""),
 		JWTSecret:          getEnv("JWT_SECRET", ""),
 		BookingHoldMinutes: getEnvInt("BOOKING_HOLD_MINUTES", 30),
+		ShopWhatsappNumber: getEnv("SHOP_WHATSAPP_NUMBER", ""),
 	}
 }
 

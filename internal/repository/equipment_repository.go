@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -73,4 +74,27 @@ func (r *EquipmentRepository) GetBySlug (ctx context.Context, slug string) (*mod
 	}
 
 	return &e, nil
+}
+
+func (r *EquipmentRepository) AvailableQuantityTx(ctx context.Context, tx pgxTx, equipmentItemID int, start, end time.Time) (int, error){
+	query := `
+	SELECT ei.total_quantity - COALESCE(sum(bi.quantity), 0)
+	FROM equipment_items ei
+	LEFT JOIN booking_items bi ON bi.equipment_item_id = ei.id
+	LEFT JOIN bookings b ON b.id = bi.booking_id
+		AND b.status IN ('pending', 'confirmed', 'ongoing')
+		AND b.start_date <= $3
+		AND b.end_date >= $2
+	WHERE ei.id = $1
+	GROUP BY ei.total_quantity
+	`
+
+	var available int
+	err := tx.QueryRow(ctx, query, equipmentItemID, start, end).Scan(&available)
+
+	if err != nil {
+		log.Fatalf("AvailaleQuantityTx error: %s", err)
+	}
+
+	return available, err
 }

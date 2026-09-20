@@ -49,6 +49,7 @@ func main() {
 		Equipment: handler.NewEquipmentHandler(equipmentService),
 		Auth: handler.NewAuthHandler(authService, employeeRepo),
 		Booking: handler.NewBookingHandler(bookingService),
+		AdminBooking: handler.NewAdminBookingHandler(bookingService),
 	}
 
 	r := router.New(handlers, authService)

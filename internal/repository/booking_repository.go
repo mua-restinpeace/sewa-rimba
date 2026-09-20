@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"log"
+	"strconv"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/mua-restinpeace/sewa-rimba/internal/model"
@@ -48,4 +50,97 @@ func (r *BookingRepository) CreateTx(ctx context.Context, tx pgxTx, b *model.Boo
 	}
 
 	return nil
+}
+
+const bookingSelectQuery = `
+	SELECT 	b.id, b.reference, b.customer_name, b.	customer_phone, b.start_date, b.end_date, b.	status, b.cancel_reason, b.created_at, b.expires_at, b.confirmed_at, b.picked_up_at, b.returned_at, b.cancelled_at
+	FROM bookings b`
+
+func (r *BookingRepository) scanOne(ctx context.Context, query string, args ...interface{}) (*model.Booking, error) {
+	var b model.Booking
+	err := r.db.QueryRow(ctx, query, args...).Scan(
+		&b.ID, &b.Reference, &b.CustomerName, &b.CustomerPhone, &b.StartDate, &b.EndDate, &b.Status, &b.CancelReason, &b.CreatedAt, &b.ExpiresAt, &b.ConfirmedAt, &b.PickedAt, &b.ReturnedAt, &b.CancelledAt,
+	)
+
+	if err != nil {
+		log.Fatalf("scanOne eror: %s\n", err)
+		return nil, err
+	}
+
+	items, err := r.getItems(ctx, b.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	b.Items = items
+	return &b, nil
+}
+
+func (r *BookingRepository) getItems(ctx context.Context, bookingID int) ([]model.BookingItems, error) {
+	query := `SELECT
+		bi.id, bi.booking_id, bi.equipment_item_id, bi.quantity, ei.name
+		FROM booking_items bi
+		JOIN equipment_items ei ON ei.id = bi.equipment_item_id
+		WHERE bi.booking_id = $1`
+
+	rows, err := r.db.Query(ctx, query, bookingID)
+	if err != nil {
+		log.Fatalf("getItems error: %s", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []model.BookingItems
+	for rows.Next() {
+		var it model.BookingItems
+		if err := rows.Scan(&it.ID, &it.BookingID, &it.EquipmentItemID, &it.Quantity, &it.EquipmentName); err != nil {
+			return nil, err
+		}
+
+		items = append(items, it)
+	}
+
+	return items, rows.Err()
+}
+
+func (r *BookingRepository) GetByID(ctx context.Context, bookingID int) (*model.Booking, error) {
+	query := bookingSelectQuery + ` WHERE b.id = $1`
+	return r.scanOne(ctx, query, bookingID)
+}
+
+func (r *BookingRepository) UpdateStatus(ctx context.Context, bookingID int, newStatus model.BookingStatus, cancelReason *model.CancelReason) error {
+	now := time.Now()
+	var timestampCol string
+	switch newStatus {
+	case model.StatusConfirmed:
+		timestampCol = "confirmed_at"
+	case model.StatusOngoing:
+		timestampCol = "picked_at"
+	case model.StatusReturned:
+		timestampCol = "returned_at"
+	case model.StatusCancelled:
+		timestampCol = "cancelled_at"
+	}
+
+	query := `UPDATE bookings SET status = $1`
+	args := []interface{}{newStatus}
+	argN := 2
+
+	if timestampCol != "" {
+		query += `, ` + timestampCol + ` = $` + strconv.Itoa(argN)
+		args = append(args, now)
+		argN++
+	}
+
+	if cancelReason != nil {
+		query += `, cancel_reason = $` + strconv.Itoa(argN)
+		args = append(args, now)
+		argN++
+	}
+
+	query += ` WHERE id = $` + strconv.Itoa(argN)
+	args = append(args, bookingID)
+
+	_, err := r.db.Exec(ctx, query, args...)
+	return err
 }

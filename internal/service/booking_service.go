@@ -46,7 +46,6 @@ func NewBookingService(bookingRepo *repository.BookingRepository, equipmentRepo 
 func (s *BookingService) Checkout(ctx context.Context, in CheckoutInput) (*model.Booking, string, error) {
 	today := time.Now().Truncate(24 * time.Hour)
 	if in.EndDate.Before(in.StartDate) || in.StartDate.Before(today) {
-		log.Fatalln("Checkout error: failed on get today times")
 		return nil, "", ErrInvalidDates
 	}
 
@@ -104,6 +103,24 @@ func (s *BookingService) Checkout(ctx context.Context, in CheckoutInput) (*model
 	}
 
 	return booking, s.buildWhatsAppURL(booking), nil
+}
+
+func (s *BookingService) Confirm(ctx context.Context, bookingId int) (*model.Booking, error){
+	booking, err := s.bookingRepo.GetByID(ctx, bookingId)
+	if err != nil {
+		log.Fatalf("Confirm error: %s\n", err)
+		return nil, err
+	}
+
+	if !model.CanTransistion(booking.Status, model.StatusConfirmed){
+		return nil, ErrInvalidStatus
+	}
+
+	if err := s.bookingRepo.UpdateStatus(ctx, bookingId, model.StatusConfirmed, nil); err != nil {
+		log.Fatalf("Confirm error: failed to update status\n%s\n", err)
+		return nil, err
+	}
+	return s.bookingRepo.GetByID(ctx, bookingId)
 }
 
 func generateReference() (string, error) {

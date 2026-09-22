@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/mua-restinpeace/sewa-rimba/internal/model"
 	"github.com/mua-restinpeace/sewa-rimba/internal/service"
 	"github.com/mua-restinpeace/sewa-rimba/pkg/response"
 )
@@ -30,7 +32,59 @@ func (h *AdminBookingHandler) Confirm(w http.ResponseWriter, r *http.Request) {
 	h.responseAfterTransition(w, booking, err)
 }
 
-func (h *AdminBookingHandler) idParam(r *http.Request) (int , error) {
+// POST /api/admin/bookings/{id}/picked_up
+func (h *AdminBookingHandler) PickedUp(w http.ResponseWriter, r *http.Request) {
+	id, err := h.idParam(r)
+	if err != nil {
+		response.BadRequest(w, "invalid booking id")
+		return
+	}
+
+	booking, err := h.service.PickedUp(r.Context(), id)
+	h.responseAfterTransition(w, booking, err)
+}
+
+// POST /api/admin/bookings/{id}/returned
+func (h *AdminBookingHandler) Returned(w http.ResponseWriter, r *http.Request) {
+	id, err := h.idParam(r)
+	if err != nil {
+		response.BadRequest(w, "invalid booking id")
+		return
+	}
+
+	booking, err := h.service.Returned(r.Context(), id)
+	h.responseAfterTransition(w, booking, err)
+}
+
+type cancelRequest struct {
+	Reason string `json:"reason"`
+}
+
+// POST /api/admin/bookings/{id}/cancel
+func (h *AdminBookingHandler) Cancel(w http.ResponseWriter, r *http.Request) {
+	id, err := h.idParam(r)
+	if err != nil {
+		response.BadRequest(w, "invalid booking id")
+		return
+	}
+
+	var req cancelRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.BadRequest(w, "invalid request body")
+		return
+	}
+
+	reason := model.CancelReason(req.Reason)
+	if reason != model.ReasonCustomerRequest && reason != model.ReasonNoShow {
+		response.BadRequest(w, "reason must be 'customer_request' or 'no_show'")
+		return
+	}
+
+	booking, err := h.service.Cancel(r.Context(), id, &reason)
+	h.responseAfterTransition(w, booking, err)
+}
+
+func (h *AdminBookingHandler) idParam(r *http.Request) (int, error) {
 	return strconv.Atoi(chi.URLParam(r, "id"))
 }
 

@@ -39,6 +39,9 @@ func New(h Handlers, authService *service.AuthService) http.Handler {
 
 			r.Route("/admin/bookings", func(r chi.Router) {
 				r.Post("/{id}/confirm", h.AdminBooking.Confirm)
+				r.Post("/{id}/pickup", h.AdminBooking.PickedUp)
+				r.Post("/{id}/return", h.AdminBooking.Returned)
+				r.Post("/{id}/cancel", h.AdminBooking.Cancel)
 			})
 		})
 	})

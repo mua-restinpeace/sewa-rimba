@@ -115,7 +115,7 @@ func (r *BookingRepository) UpdateStatus(ctx context.Context, bookingID int, new
 	case model.StatusConfirmed:
 		timestampCol = "confirmed_at"
 	case model.StatusOngoing:
-		timestampCol = "picked_at"
+		timestampCol = "picked_up_at"
 	case model.StatusReturned:
 		timestampCol = "returned_at"
 	case model.StatusCancelled:
@@ -134,7 +134,7 @@ func (r *BookingRepository) UpdateStatus(ctx context.Context, bookingID int, new
 
 	if cancelReason != nil {
 		query += `, cancel_reason = $` + strconv.Itoa(argN)
-		args = append(args, now)
+		args = append(args, *cancelReason)
 		argN++
 	}
 

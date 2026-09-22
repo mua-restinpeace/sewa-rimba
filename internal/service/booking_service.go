@@ -105,14 +105,14 @@ func (s *BookingService) Checkout(ctx context.Context, in CheckoutInput) (*model
 	return booking, s.buildWhatsAppURL(booking), nil
 }
 
-func (s *BookingService) Confirm(ctx context.Context, bookingId int) (*model.Booking, error){
+func (s *BookingService) Confirm(ctx context.Context, bookingId int) (*model.Booking, error) {
 	booking, err := s.bookingRepo.GetByID(ctx, bookingId)
 	if err != nil {
 		log.Fatalf("Confirm error: %s\n", err)
 		return nil, err
 	}
 
-	if !model.CanTransistion(booking.Status, model.StatusConfirmed){
+	if !model.CanTransistion(booking.Status, model.StatusConfirmed) {
 		return nil, ErrInvalidStatus
 	}
 
@@ -121,6 +121,63 @@ func (s *BookingService) Confirm(ctx context.Context, bookingId int) (*model.Boo
 		return nil, err
 	}
 	return s.bookingRepo.GetByID(ctx, bookingId)
+}
+
+func (s *BookingService) PickedUp(ctx context.Context, bookingId int) (*model.Booking, error) {
+	booking, err := s.bookingRepo.GetByID(ctx, bookingId)
+	if err != nil {
+		log.Fatalf("Picked up error: %s\n", err)
+		return nil, err
+	}
+
+	if !model.CanTransistion(booking.Status, model.StatusOngoing) {
+		return nil, ErrInvalidStatus
+	}
+
+	if err := s.bookingRepo.UpdateStatus(ctx, bookingId, model.StatusOngoing, nil); err != nil {
+		log.Fatalf("Picked up error: failed to update status to ongoing\n%s\n", err)
+		return nil, err
+	}
+
+	return s.bookingRepo.GetByID(ctx, bookingId)
+}
+
+func (s *BookingService) Returned(ctx context.Context, bookingID int) (*model.Booking, error) {
+	booking, err := s.bookingRepo.GetByID(ctx, bookingID)
+	if err != nil {
+		log.Fatalf("Returned error: %s\n", err)
+		return nil, err
+	}
+
+	if !model.CanTransistion(booking.Status, model.StatusReturned) {
+		return nil, ErrInvalidStatus
+	}
+
+	if err := s.bookingRepo.UpdateStatus(ctx, bookingID, model.StatusReturned, nil); err != nil {
+		log.Fatalf("Returned error: failed to update status\n%s\n", err)
+		return nil, err
+	}
+
+	return s.bookingRepo.GetByID(ctx, bookingID)
+}
+
+func (s *BookingService) Cancel(ctx context.Context, bookingID int, reason *model.CancelReason) (*model.Booking, error) {
+	booking, err := s.bookingRepo.GetByID(ctx, bookingID)
+	if err != nil {
+		log.Fatalf("Cancel error: %s", err)
+		return nil, err
+	}
+
+	if !model.CanTransistion(booking.Status, model.StatusCancelled) {
+		return nil, ErrInvalidStatus
+	}
+
+	if err := s.bookingRepo.UpdateStatus(ctx, bookingID, model.StatusCancelled, reason); err != nil {
+		log.Fatalf("Return error: failed to update status\n%s\n", err)
+		return nil, err
+	}
+
+	return s.bookingRepo.GetByID(ctx, bookingID)
 }
 
 func generateReference() (string, error) {

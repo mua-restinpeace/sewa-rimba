@@ -14,6 +14,7 @@ import (
 
 	"github.com/mua-restinpeace/sewa-rimba/internal/config"
 	"github.com/mua-restinpeace/sewa-rimba/internal/handler"
+	"github.com/mua-restinpeace/sewa-rimba/internal/jobs"
 	"github.com/mua-restinpeace/sewa-rimba/internal/repository"
 	"github.com/mua-restinpeace/sewa-rimba/internal/router"
 	"github.com/mua-restinpeace/sewa-rimba/internal/service"
@@ -53,6 +54,8 @@ func main() {
 	}
 
 	r := router.New(handlers, authService)
+
+	go jobs.StartBookingExpireJob(ctx, bookingRepo, time.Minute)
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,

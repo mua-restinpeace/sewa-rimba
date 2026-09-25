@@ -28,6 +28,7 @@ func New(h Handlers, authService *service.AuthService) http.Handler {
 		r.Get("/equipment", h.Equipment.List)
 		r.Get("/equipment/{slug}", h.Equipment.Get)
 		r.Post("/bookings", h.Booking.Create)
+		r.Get("/bookings/lookup", h.Booking.Lookup)
 
 		r.Post("/auth/login", h.Auth.Login)
 

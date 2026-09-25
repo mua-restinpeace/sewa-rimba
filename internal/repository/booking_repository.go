@@ -108,6 +108,11 @@ func (r *BookingRepository) GetByID(ctx context.Context, bookingID int) (*model.
 	return r.scanOne(ctx, query, bookingID)
 }
 
+func (r *BookingRepository) GetByReferenceAndPhone(ctx context.Context, reference, phone string)  (*model.Booking, error){
+	query := bookingSelectQuery + ` WHERE b.reference = $1 AND b.customer_phone = $2`
+	return  r.scanOne(ctx, query, reference, phone)
+}
+
 func (r *BookingRepository) UpdateStatus(ctx context.Context, bookingID int, newStatus model.BookingStatus, cancelReason *model.CancelReason) error {
 	now := time.Now()
 	var timestampCol string
@@ -143,4 +148,18 @@ func (r *BookingRepository) UpdateStatus(ctx context.Context, bookingID int, new
 
 	_, err := r.db.Exec(ctx, query, args...)
 	return err
+}
+
+// ExpiredPendingBokings is called by the background job
+func (r *BookingRepository) ExpiredPendingBookings(ctx context.Context,)(int64, error){
+	query := `
+	UPDATE bookings SET status = 'expired'
+	WHERE status = 'pending' AND expires_at < now()`
+	
+	tag, err := r.db.Exec(ctx, query)
+	if err != nil {
+		return 0, err
+	}
+
+	return tag.RowsAffected(), nil
 }

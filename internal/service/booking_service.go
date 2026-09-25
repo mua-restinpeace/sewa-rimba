@@ -180,6 +180,10 @@ func (s *BookingService) Cancel(ctx context.Context, bookingID int, reason *mode
 	return s.bookingRepo.GetByID(ctx, bookingID)
 }
 
+func (s *BookingService) LookupByReferenceAndPhone(ctx context.Context, reference, phone string) (*model.Booking, error){
+	return s.bookingRepo.GetByReferenceAndPhone(ctx, reference, phone)
+}
+
 func generateReference() (string, error) {
 	b := make([]byte, 4)
 	if _, err := rand.Read(b); err != nil {

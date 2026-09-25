@@ -93,3 +93,20 @@ func (h *BookingHandler) Create(w http.ResponseWriter, r *http.Request) {
 	})
 
 }
+
+func (h *BookingHandler) Lookup(w http.ResponseWriter, r *http.Request) {
+	reference := r.URL.Query().Get("reference")
+	phone := r.URL.Query().Get("phone")
+	if reference == "" || phone == "" {
+		response.BadRequest(w, "both reference and phoen are required")
+		return
+	}
+
+	booking, err := h.service.LookupByReferenceAndPhone(r.Context(), reference, phone)
+	if err != nil {
+		response.NotFound(w, "no booking found matching that reference and phone number")
+		return
+	}
+
+	response.JSON(w, http.StatusOK, booking)
+}

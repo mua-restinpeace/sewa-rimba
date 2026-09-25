@@ -149,3 +149,17 @@ func (r *BookingRepository) UpdateStatus(ctx context.Context, bookingID int, new
 	_, err := r.db.Exec(ctx, query, args...)
 	return err
 }
+
+// ExpiredPendingBokings is called by the background job
+func (r *BookingRepository) ExpiredPendingBookings(ctx context.Context,)(int64, error){
+	query := `
+	UPDATE bookings SET status = 'expired'
+	WHERE status = 'pending' AND expires_at < now()`
+	
+	tag, err := r.db.Exec(ctx, query)
+	if err != nil {
+		return 0, err
+	}
+
+	return tag.RowsAffected(), nil
+}

@@ -93,7 +93,7 @@ func (r *EquipmentRepository) AvailableQuantityTx(ctx context.Context, tx pgxTx,
 	err := tx.QueryRow(ctx, query, equipmentItemID, start, end).Scan(&available)
 
 	if err != nil {
-		log.Fatalf("AvailaleQuantityTx error: %s", err)
+		log.Printf("AvailaleQuantityTx error: %s", err)
 	}
 
 	return available, err

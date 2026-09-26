@@ -33,7 +33,7 @@ func (r *BookingRepository) CreateTx(ctx context.Context, tx pgxTx, b *model.Boo
 	err := tx.QueryRow(ctx, query, b.Reference, b.CustomerName, b.CustomerPhone, b.StartDate, b.EndDate, b.Status, b.ExpiresAt).Scan(&b.ID, &b.CreatedAt)
 
 	if err != nil {
-		log.Fatalln("CreateTx error: failed to insert into bookings")
+		log.Println("CreateTx error: failed to insert into bookings")
 		return err
 	}
 
@@ -44,7 +44,7 @@ func (r *BookingRepository) CreateTx(ctx context.Context, tx pgxTx, b *model.Boo
 		INSERT INTO booking_items (booking_id, equipment_item_id, quantity) VALUES($1, $2, $3)`, item.BookingID, item.EquipmentItemID, item.Quantity)
 
 		if err != nil {
-			log.Fatalf("CreateTx error: failed to insert into items ID: %d\n", item.ID)
+			log.Printf("CreateTx error: failed to insert into items ID: %d\n", item.ID)
 			return err
 		}
 	}
@@ -53,7 +53,7 @@ func (r *BookingRepository) CreateTx(ctx context.Context, tx pgxTx, b *model.Boo
 }
 
 const bookingSelectQuery = `
-	SELECT 	b.id, b.reference, b.customer_name, b.	customer_phone, b.start_date, b.end_date, b.	status, b.cancel_reason, b.created_at, b.expires_at, b.confirmed_at, b.picked_up_at, b.returned_at, b.cancelled_at
+	SELECT 	b.id, b.reference, b.customer_name, b.customer_phone, b.start_date, b.end_date, b.status, b.cancel_reason, b.created_at, b.expires_at, b.confirmed_at, b.picked_up_at, b.returned_at, b.cancelled_at
 	FROM bookings b`
 
 func (r *BookingRepository) scanOne(ctx context.Context, query string, args ...interface{}) (*model.Booking, error) {
@@ -63,7 +63,7 @@ func (r *BookingRepository) scanOne(ctx context.Context, query string, args ...i
 	)
 
 	if err != nil {
-		log.Fatalf("scanOne eror: %s\n", err)
+		log.Printf("scanOne eror: %s\n", err)
 		return nil, err
 	}
 
@@ -85,7 +85,7 @@ func (r *BookingRepository) getItems(ctx context.Context, bookingID int) ([]mode
 
 	rows, err := r.db.Query(ctx, query, bookingID)
 	if err != nil {
-		log.Fatalf("getItems error: %s", err)
+		log.Printf("getItems error: %s", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -108,9 +108,9 @@ func (r *BookingRepository) GetByID(ctx context.Context, bookingID int) (*model.
 	return r.scanOne(ctx, query, bookingID)
 }
 
-func (r *BookingRepository) GetByReferenceAndPhone(ctx context.Context, reference, phone string)  (*model.Booking, error){
+func (r *BookingRepository) GetByReferenceAndPhone(ctx context.Context, reference, phone string) (*model.Booking, error) {
 	query := bookingSelectQuery + ` WHERE b.reference = $1 AND b.customer_phone = $2`
-	return  r.scanOne(ctx, query, reference, phone)
+	return r.scanOne(ctx, query, reference, phone)
 }
 
 func (r *BookingRepository) UpdateStatus(ctx context.Context, bookingID int, newStatus model.BookingStatus, cancelReason *model.CancelReason) error {
@@ -150,12 +150,87 @@ func (r *BookingRepository) UpdateStatus(ctx context.Context, bookingID int, new
 	return err
 }
 
+type filterClause struct {
+	sql   string
+	value interface{}
+}
+
+// return paginated filtered booking list
+func (r *BookingRepository) ListFiltered(ctx context.Context, status, reference, phone string, page, limit int) ([]model.Booking, int, error) {
+	var bookings []model.Booking
+	offset := (page - 1) * limit
+
+	query := `
+	SELECT 	b.id, b.reference, b.customer_name, b.customer_phone, b.start_date, b.end_date, b.status, b.cancel_reason, b.created_at, b.expires_at, b.confirmed_at, b.picked_up_at, b.returned_at, b.cancelled_at, COUNT(*) OVER() as total_count
+	FROM bookings b`
+
+	args := []interface{}{limit, offset}
+	argN := 3
+	var clauses []filterClause
+
+	if status != "" {
+		clauses = append(clauses, filterClause{sql: `status = $` + strconv.Itoa(argN) + `::booking_status`, value: status})
+		argN++
+	}
+
+	if reference != "" {
+		clauses = append(clauses, filterClause{sql: `reference = $` + strconv.Itoa(argN), value: reference})
+		argN++
+	}
+
+	if phone != "" {
+		clauses = append(clauses, filterClause{sql: `customer_phone = $` + strconv.Itoa(argN), value: phone})
+		argN++
+	}
+
+	if len(clauses) != 0 {
+		query += ` WHERE `
+		for i, val := range clauses {
+			if i > 0 {
+				query += ` AND `
+			}
+			query += val.sql
+			args = append(args, val.value)
+		}
+	}
+
+	query += ` ORDER BY expires_at DESC LIMIT $1 OFFSET $2`
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		log.Printf("ListFiltered error: %s", err)
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var total int
+	for rows.Next() {
+		var b model.Booking
+		if err := rows.Scan(&b.ID, &b.Reference, &b.CustomerName, &b.CustomerPhone, &b.StartDate, &b.EndDate, &b.Status, &b.CancelReason, &b.CreatedAt, &b.ExpiresAt, &b.ConfirmedAt, &b.PickedAt, &b.ReturnedAt, &b.CancelledAt, &total); err != nil {
+			log.Printf("ListFiltered scan error: %s", err)
+			return nil, 0, rows.Err()
+		}
+
+		items, err := r.getItems(ctx, b.ID)
+		if err != nil {
+			log.Printf("ListFiltered error: failed to fetch booking %s\n%s", b.Reference, err)
+			return nil, 0, rows.Err()
+		}
+
+		b.Items = items
+
+		bookings = append(bookings, b)
+	}
+
+	return bookings, total, rows.Err()
+}
+
 // ExpiredPendingBokings is called by the background job
-func (r *BookingRepository) ExpiredPendingBookings(ctx context.Context,)(int64, error){
+func (r *BookingRepository) ExpiredPendingBookings(ctx context.Context) (int64, error) {
 	query := `
 	UPDATE bookings SET status = 'expired'
 	WHERE status = 'pending' AND expires_at < now()`
-	
+
 	tag, err := r.db.Exec(ctx, query)
 	if err != nil {
 		return 0, err

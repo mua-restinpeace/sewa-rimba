@@ -32,6 +32,13 @@ type CheckoutInput struct {
 	Items         []CheckoutItem
 }
 
+type PaginatedBookingResponse struct {
+	Data       []model.Booking `json:"data"`
+	TotalCount int             `json:"total_count"`
+	Page       int             `json:"page"`
+	PageSize   int             `json:"page_size"`
+}
+
 type BookingService struct {
 	bookingRepo   *repository.BookingRepository
 	equipmentRepo *repository.EquipmentRepository
@@ -51,7 +58,7 @@ func (s *BookingService) Checkout(ctx context.Context, in CheckoutInput) (*model
 
 	tx, err := s.bookingRepo.Pool().Begin(ctx)
 	if err != nil {
-		log.Fatalf("Checkout error: %s", err)
+		log.Printf("Checkout error: %s", err)
 	}
 
 	defer tx.Rollback(ctx)
@@ -59,19 +66,19 @@ func (s *BookingService) Checkout(ctx context.Context, in CheckoutInput) (*model
 	for _, item := range in.Items {
 		available, err := s.equipmentRepo.AvailableQuantityTx(ctx, tx, item.EquipmentItemID, in.StartDate, in.EndDate)
 		if err != nil {
-			log.Fatalf("Checkout error: %s", err)
+			log.Printf("Checkout error: %s", err)
 			return nil, "", ErrItemUnavailable
 		}
 
 		if available < item.Quantity {
-			log.Fatalln("Checkout error: item unavailable")
+			log.Printf("Checkout error: item unavailable")
 			return nil, "", ErrItemUnavailable
 		}
 	}
 
 	reference, err := generateReference()
 	if err != nil {
-		log.Fatalln("Checkout error: failed to generate reference")
+		log.Printf("Checkout error: failed to generate reference")
 		return nil, "", err
 	}
 
@@ -93,12 +100,12 @@ func (s *BookingService) Checkout(ctx context.Context, in CheckoutInput) (*model
 	}
 
 	if err := s.bookingRepo.CreateTx(ctx, tx, booking); err != nil {
-		log.Fatalf("Checkout error: %s\n", err)
+		log.Printf("Checkout error: %s\n", err)
 		return nil, "", err
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		log.Fatalf("Checkout error: %s\n", err)
+		log.Printf("Checkout error: %s\n", err)
 		return nil, "", err
 	}
 
@@ -108,7 +115,7 @@ func (s *BookingService) Checkout(ctx context.Context, in CheckoutInput) (*model
 func (s *BookingService) Confirm(ctx context.Context, bookingId int) (*model.Booking, error) {
 	booking, err := s.bookingRepo.GetByID(ctx, bookingId)
 	if err != nil {
-		log.Fatalf("Confirm error: %s\n", err)
+		log.Printf("Confirm error: %s\n", err)
 		return nil, err
 	}
 
@@ -117,7 +124,7 @@ func (s *BookingService) Confirm(ctx context.Context, bookingId int) (*model.Boo
 	}
 
 	if err := s.bookingRepo.UpdateStatus(ctx, bookingId, model.StatusConfirmed, nil); err != nil {
-		log.Fatalf("Confirm error: failed to update status\n%s\n", err)
+		log.Printf("Confirm error: failed to update status\n%s\n", err)
 		return nil, err
 	}
 	return s.bookingRepo.GetByID(ctx, bookingId)
@@ -126,7 +133,7 @@ func (s *BookingService) Confirm(ctx context.Context, bookingId int) (*model.Boo
 func (s *BookingService) PickedUp(ctx context.Context, bookingId int) (*model.Booking, error) {
 	booking, err := s.bookingRepo.GetByID(ctx, bookingId)
 	if err != nil {
-		log.Fatalf("Picked up error: %s\n", err)
+		log.Printf("Picked up error: %s\n", err)
 		return nil, err
 	}
 
@@ -135,7 +142,7 @@ func (s *BookingService) PickedUp(ctx context.Context, bookingId int) (*model.Bo
 	}
 
 	if err := s.bookingRepo.UpdateStatus(ctx, bookingId, model.StatusOngoing, nil); err != nil {
-		log.Fatalf("Picked up error: failed to update status to ongoing\n%s\n", err)
+		log.Printf("Picked up error: failed to update status to ongoing\n%s\n", err)
 		return nil, err
 	}
 
@@ -145,7 +152,7 @@ func (s *BookingService) PickedUp(ctx context.Context, bookingId int) (*model.Bo
 func (s *BookingService) Returned(ctx context.Context, bookingID int) (*model.Booking, error) {
 	booking, err := s.bookingRepo.GetByID(ctx, bookingID)
 	if err != nil {
-		log.Fatalf("Returned error: %s\n", err)
+		log.Printf("Returned error: %s\n", err)
 		return nil, err
 	}
 
@@ -154,7 +161,7 @@ func (s *BookingService) Returned(ctx context.Context, bookingID int) (*model.Bo
 	}
 
 	if err := s.bookingRepo.UpdateStatus(ctx, bookingID, model.StatusReturned, nil); err != nil {
-		log.Fatalf("Returned error: failed to update status\n%s\n", err)
+		log.Printf("Returned error: failed to update status\n%s\n", err)
 		return nil, err
 	}
 
@@ -164,7 +171,7 @@ func (s *BookingService) Returned(ctx context.Context, bookingID int) (*model.Bo
 func (s *BookingService) Cancel(ctx context.Context, bookingID int, reason *model.CancelReason) (*model.Booking, error) {
 	booking, err := s.bookingRepo.GetByID(ctx, bookingID)
 	if err != nil {
-		log.Fatalf("Cancel error: %s", err)
+		log.Printf("Cancel error: %s", err)
 		return nil, err
 	}
 
@@ -173,15 +180,29 @@ func (s *BookingService) Cancel(ctx context.Context, bookingID int, reason *mode
 	}
 
 	if err := s.bookingRepo.UpdateStatus(ctx, bookingID, model.StatusCancelled, reason); err != nil {
-		log.Fatalf("Return error: failed to update status\n%s\n", err)
+		log.Printf("Return error: failed to update status\n%s\n", err)
 		return nil, err
 	}
 
 	return s.bookingRepo.GetByID(ctx, bookingID)
 }
 
-func (s *BookingService) LookupByReferenceAndPhone(ctx context.Context, reference, phone string) (*model.Booking, error){
+func (s *BookingService) LookupByReferenceAndPhone(ctx context.Context, reference, phone string) (*model.Booking, error) {
 	return s.bookingRepo.GetByReferenceAndPhone(ctx, reference, phone)
+}
+
+func (s *BookingService) GetFilteredList(ctx context.Context, status, reference, phone string, page, limit int) (PaginatedBookingResponse, error) {
+	bookings, total, err := s.bookingRepo.ListFiltered(ctx, status, reference, phone, page, limit)
+	if err != nil {
+		return PaginatedBookingResponse{}, err
+	}
+
+	return PaginatedBookingResponse{
+		Data:       bookings,
+		TotalCount: total,
+		Page:       page,
+		PageSize:   limit,
+	}, err
 }
 
 func generateReference() (string, error) {

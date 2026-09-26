@@ -40,7 +40,7 @@ type Booking struct {
 
 type BookingItems struct {
 	ID              int    `json:"id"`
-	BookingID        int    `json:"booking_id"`
+	BookingID       int    `json:"booking_id"`
 	EquipmentItemID int    `json:"equipment_item_id"`
 	EquipmentName   string `json:"equipment_name"`
 	Quantity        int    `json:"quantity"`

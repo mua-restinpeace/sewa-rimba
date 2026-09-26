@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -12,16 +13,25 @@ import (
 	"github.com/mua-restinpeace/sewa-rimba/pkg/response"
 )
 
-type AdminBookingHandler struct {
-	service *service.BookingService
+type AdminBookingService interface {
+	Confirm(ctx context.Context, bookingId int) (*model.Booking, error)
+	PickedUp(ctx context.Context, bookingId int) (*model.Booking, error)
+	Returned(ctx context.Context, bookingId int) (*model.Booking, error)
+	Cancel(ctx context.Context, bookingId int, reason *model.CancelReason) (*model.Booking, error)
+	LookupByReferenceAndPhone(ctx context.Context, reference, phone string) (*model.Booking, error)
+	GetFilteredList(ctx context.Context, status, reference, phone string, page, limit int) (service.PaginatedBookingResponse, error)
 }
 
-func NewAdminBookingHandler(service *service.BookingService) *AdminBookingHandler {
+type AdminBookingHandler struct {
+	service AdminBookingService
+}
+
+func NewAdminBookingHandler(service AdminBookingService) *AdminBookingHandler {
 	return &AdminBookingHandler{service: service}
 }
 
 // GET /api/admin/bookings
-func (h *AdminBookingHandler) GetList(w http.ResponseWriter, r *http.Request){
+func (h *AdminBookingHandler) GetList(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	reference := r.URL.Query().Get("reference")
 	phone := r.URL.Query().Get("phone")
@@ -31,7 +41,7 @@ func (h *AdminBookingHandler) GetList(w http.ResponseWriter, r *http.Request){
 	page, _ := strconv.Atoi(pageStr)
 	if page < 1 {
 		page = 1
-	} 
+	}
 
 	limitStr := r.URL.Query().Get("limit")
 	limit, _ := strconv.Atoi(limitStr)

@@ -1,20 +1,27 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
 
+	"github.com/mua-restinpeace/sewa-rimba/internal/model"
 	"github.com/mua-restinpeace/sewa-rimba/internal/service"
 	"github.com/mua-restinpeace/sewa-rimba/pkg/response"
 )
 
-type BookingHandler struct {
-	service *service.BookingService
+type BookingService interface{
+	Checkout(ctx context.Context, in service.CheckoutInput) (*model.Booking, string, error)
+	LookupByReferenceAndPhone(ctx context.Context, reference, phone string) (*model.Booking, error)
 }
 
-func NewBookingHandler(service *service.BookingService) *BookingHandler {
+type BookingHandler struct {
+	service BookingService
+}
+
+func NewBookingHandler(service BookingService) *BookingHandler {
 	return &BookingHandler{service: service}
 }
 

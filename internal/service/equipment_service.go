@@ -16,8 +16,8 @@ func NewEquipmentService(repo *repository.EquipmentRepository) *EquipmentService
 	return &EquipmentService{repo: repo}
 }
 
-func (s *EquipmentService) ListAvailable(ctx context.Context, start, end time.Time, categoryID *int) ([]model.EquipmentAvailability, error) {
-	return s.repo.ListAvailable(ctx, start, end, categoryID)
+func (s *EquipmentService) ListAvailable(ctx context.Context, start, end time.Time, categoryId *int) ([]model.EquipmentAvailability, error) {
+	return s.repo.ListAvailable(ctx, start, end, categoryId)
 }
 
 func (s *EquipmentService) GetBySlug(ctx context.Context, slug string) (*model.EquipmentItem, error){

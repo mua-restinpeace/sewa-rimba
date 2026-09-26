@@ -1,20 +1,26 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/mua-restinpeace/sewa-rimba/internal/service"
+	"github.com/mua-restinpeace/sewa-rimba/internal/model"
 	"github.com/mua-restinpeace/sewa-rimba/pkg/response"
 )
 
-type EquipmentHandler struct {
-	service *service.EquipmentService
+type EquipmentService interface {
+	ListAvailable(ctx context.Context, start, end time.Time, categoryId *int) ([]model.EquipmentAvailability, error)
+	GetBySlug(ctx context.Context, slug string) (*model.EquipmentItem, error)
 }
 
-func NewEquipmentHandler(s *service.EquipmentService) *EquipmentHandler {
+type EquipmentHandler struct {
+	service EquipmentService
+}
+
+func NewEquipmentHandler(s EquipmentService) *EquipmentHandler {
 	return &EquipmentHandler{service: s}
 }
 

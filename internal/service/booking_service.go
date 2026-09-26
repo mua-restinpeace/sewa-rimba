@@ -149,8 +149,8 @@ func (s *BookingService) PickedUp(ctx context.Context, bookingId int) (*model.Bo
 	return s.bookingRepo.GetByID(ctx, bookingId)
 }
 
-func (s *BookingService) Returned(ctx context.Context, bookingID int) (*model.Booking, error) {
-	booking, err := s.bookingRepo.GetByID(ctx, bookingID)
+func (s *BookingService) Returned(ctx context.Context, bookingId int) (*model.Booking, error) {
+	booking, err := s.bookingRepo.GetByID(ctx, bookingId)
 	if err != nil {
 		log.Printf("Returned error: %s\n", err)
 		return nil, err
@@ -160,16 +160,16 @@ func (s *BookingService) Returned(ctx context.Context, bookingID int) (*model.Bo
 		return nil, ErrInvalidStatus
 	}
 
-	if err := s.bookingRepo.UpdateStatus(ctx, bookingID, model.StatusReturned, nil); err != nil {
+	if err := s.bookingRepo.UpdateStatus(ctx, bookingId, model.StatusReturned, nil); err != nil {
 		log.Printf("Returned error: failed to update status\n%s\n", err)
 		return nil, err
 	}
 
-	return s.bookingRepo.GetByID(ctx, bookingID)
+	return s.bookingRepo.GetByID(ctx, bookingId)
 }
 
-func (s *BookingService) Cancel(ctx context.Context, bookingID int, reason *model.CancelReason) (*model.Booking, error) {
-	booking, err := s.bookingRepo.GetByID(ctx, bookingID)
+func (s *BookingService) Cancel(ctx context.Context, bookingId int, reason *model.CancelReason) (*model.Booking, error) {
+	booking, err := s.bookingRepo.GetByID(ctx, bookingId)
 	if err != nil {
 		log.Printf("Cancel error: %s", err)
 		return nil, err
@@ -179,12 +179,12 @@ func (s *BookingService) Cancel(ctx context.Context, bookingID int, reason *mode
 		return nil, ErrInvalidStatus
 	}
 
-	if err := s.bookingRepo.UpdateStatus(ctx, bookingID, model.StatusCancelled, reason); err != nil {
+	if err := s.bookingRepo.UpdateStatus(ctx, bookingId, model.StatusCancelled, reason); err != nil {
 		log.Printf("Return error: failed to update status\n%s\n", err)
 		return nil, err
 	}
 
-	return s.bookingRepo.GetByID(ctx, bookingID)
+	return s.bookingRepo.GetByID(ctx, bookingId)
 }
 
 func (s *BookingService) LookupByReferenceAndPhone(ctx context.Context, reference, phone string) (*model.Booking, error) {

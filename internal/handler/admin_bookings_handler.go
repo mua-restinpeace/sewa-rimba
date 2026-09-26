@@ -20,6 +20,38 @@ func NewAdminBookingHandler(service *service.BookingService) *AdminBookingHandle
 	return &AdminBookingHandler{service: service}
 }
 
+// GET /api/admin/bookings
+func (h *AdminBookingHandler) GetList(w http.ResponseWriter, r *http.Request){
+	status := r.URL.Query().Get("status")
+	reference := r.URL.Query().Get("reference")
+	phone := r.URL.Query().Get("phone")
+
+	// default value for pagination
+	pageStr := r.URL.Query().Get("page")
+	page, _ := strconv.Atoi(pageStr)
+	if page < 1 {
+		page = 1
+	} 
+
+	limitStr := r.URL.Query().Get("limit")
+	limit, _ := strconv.Atoi(limitStr)
+	if limit < 1 {
+		limit = 10
+	}
+
+	if limit > 100 {
+		limit = 100
+	}
+
+	result, err := h.service.GetFilteredList(r.Context(), status, reference, phone, page, limit)
+	if err != nil {
+		response.Internal(w, "failed to fetch list bookings")
+		return
+	}
+
+	response.JSON(w, http.StatusOK, result)
+}
+
 // POST /api/admin/bookings/{id}/confirm
 func (h *AdminBookingHandler) Confirm(w http.ResponseWriter, r *http.Request) {
 	id, err := h.idParam(r)

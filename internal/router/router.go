@@ -39,6 +39,7 @@ func New(h Handlers, authService *service.AuthService) http.Handler {
 			r.Get("/auth/me", h.Auth.Me)
 
 			r.Route("/admin/bookings", func(r chi.Router) {
+				r.Get("/", h.AdminBooking.GetList)
 				r.Post("/{id}/confirm", h.AdminBooking.Confirm)
 				r.Post("/{id}/pickup", h.AdminBooking.PickedUp)
 				r.Post("/{id}/return", h.AdminBooking.Returned)

@@ -15,6 +15,7 @@ type Handlers struct {
 	Booking      *handler.BookingHandler
 	Auth         *handler.AuthHendler
 	AdminBooking *handler.AdminBookingHandler
+	Category     *handler.CategoryHandler
 }
 
 func New(h Handlers, authService *service.AuthService) http.Handler {
@@ -44,6 +45,10 @@ func New(h Handlers, authService *service.AuthService) http.Handler {
 				r.Post("/{id}/pickup", h.AdminBooking.PickedUp)
 				r.Post("/{id}/return", h.AdminBooking.Returned)
 				r.Post("/{id}/cancel", h.AdminBooking.Cancel)
+			})
+
+			r.Route("/admin/categories", func(r chi.Router) {
+				r.Post("/", h.Category.CreateCategory)
 			})
 		})
 	})

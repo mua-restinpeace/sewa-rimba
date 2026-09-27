@@ -39,11 +39,13 @@ func main() {
 	equipmentRepo := repository.NewEquipmentrRepository(db)
 	employeeRepo := repository.NewEmployeeRepository(db)
 	bookingRepo := repository.NewBookingRepository(db)
+	categoryRepo := repository.NewCategoryRepository(db)
 
 	// services
 	equipmentService := service.NewEquipmentService(equipmentRepo)
 	authService := service.NewAuthService(employeeRepo, cfg.JWTSecret)
 	bookingService := service.NewBookingService(bookingRepo, equipmentRepo, cfg.BookingHoldMinutes, cfg.ShopWhatsappNumber)
+	categoryService := service.NewCategoryService(categoryRepo)
 
 	// handlers
 	handlers := router.Handlers{
@@ -51,6 +53,7 @@ func main() {
 		Auth: handler.NewAuthHandler(authService, employeeRepo),
 		Booking: handler.NewBookingHandler(bookingService),
 		AdminBooking: handler.NewAdminBookingHandler(bookingService),
+		Category: handler.NewCategoryHandler(categoryService),
 	}
 
 	r := router.New(handlers, authService)

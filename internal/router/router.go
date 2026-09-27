@@ -49,6 +49,8 @@ func New(h Handlers, authService *service.AuthService) http.Handler {
 
 			r.Route("/admin/categories", func(r chi.Router) {
 				r.Post("/", h.Category.CreateCategory)
+				r.Get("/", h.Category.List)
+				r.Get("/{slug}", h.Category.Get)
 			})
 		})
 	})

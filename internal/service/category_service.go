@@ -18,3 +18,11 @@ func NewCategoryService(repo *repository.CategoryRepository) *CategoryService {
 func (s *CategoryService) Create(ctx context.Context, name string) (*model.Category, error){
 	return s.repo.Create(ctx, name)
 }
+
+func (s *CategoryService) GetBySlug(ctx context.Context, slug string) (*model.Category, error){
+	return s.repo.GetBySlug(ctx, slug)
+}
+
+func (s *CategoryService) GetList(ctx context.Context) ([]model.Category, error){
+	return  s.repo.GetList(ctx)
+}

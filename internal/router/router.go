@@ -30,6 +30,7 @@ func New(h Handlers, authService *service.AuthService) http.Handler {
 		r.Get("/equipment/{slug}", h.Equipment.Get)
 		r.Post("/bookings", h.Booking.Create)
 		r.Get("/bookings/lookup", h.Booking.Lookup)
+		r.Get("/categories", h.Category.List)
 
 		r.Post("/auth/login", h.Auth.Login)
 
@@ -49,8 +50,9 @@ func New(h Handlers, authService *service.AuthService) http.Handler {
 
 			r.Route("/admin/categories", func(r chi.Router) {
 				r.Post("/", h.Category.CreateCategory)
-				r.Get("/", h.Category.List)
 				r.Get("/{slug}", h.Category.Get)
+				r.Put("/{id}", h.Category.Update)
+				r.Delete("/{id}", h.Category.Delete)
 			})
 		})
 	})

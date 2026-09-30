@@ -2,11 +2,17 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"log"
 
 	"github.com/gosimple/slug"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/mua-restinpeace/sewa-rimba/internal/model"
+)
+
+var (
+	ErrCategoryNotFound = errors.New("category not found")
 )
 
 type CategoryRepository struct {
@@ -19,14 +25,14 @@ func NewCategoryRepository(db *pgxpool.Pool) *CategoryRepository {
 
 func (r *CategoryRepository) Create(ctx context.Context, name string) (*model.Category, error) {
 	var c model.Category
-	slug := slug.Make(name)
+	generatedSlug := slug.Make(name)
 
 	query := `
 	INSERT INTO categories(name, slug)
 	VALUES($1, $2)
 	RETURNING id, name, slug`
 
-	err := r.db.QueryRow(ctx, query, name, slug).Scan(
+	err := r.db.QueryRow(ctx, query, name, generatedSlug).Scan(
 		&c.ID, &c.Name, &c.Slug,
 	)
 
@@ -60,8 +66,8 @@ func (r *CategoryRepository) GetList(ctx context.Context) ([]model.Category, err
 
 	rows, err := r.db.Query(ctx, query)
 	if err != nil {
-		log.Printf("GetList error: %s\n", rows.Err())
-		return nil, rows.Err()
+		log.Printf("GetList error: %s\n", err)
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -76,5 +82,40 @@ func (r *CategoryRepository) GetList(ctx context.Context) ([]model.Category, err
 		categories = append(categories, c)
 	}
 
-	return categories, err
+	return categories, rows.Err()
+}
+
+func (r *CategoryRepository) Update(ctx context.Context, categoryId int, name string) (*model.Category, error) {
+	query := `
+	UPDATE categories SET name = $1, slug = $2 where id = $3
+	RETURNING id, name, slug`
+
+	var c model.Category
+	generatedSlug := slug.Make(name)
+	err := r.db.QueryRow(ctx, query, name, generatedSlug, categoryId).Scan(&c.ID, &c.Name, &c.Slug)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrCategoryNotFound
+		}
+		log.Printf("Update error: $%s\n", err)
+		return nil, err
+	}
+
+	return &c, err
+}
+
+func (r *CategoryRepository) Delete(ctx context.Context, categoryId int) error {
+	query := `
+	DELETE FROM categories where id = $1`
+
+	tag, err := r.db.Exec(ctx, query, categoryId)
+	if err != nil {
+		log.Printf("delete category error: %s\n", err)
+		return err
+	}
+
+	if tag.RowsAffected() == 0 {
+		return ErrCategoryNotFound
+	}
+	return nil
 }
